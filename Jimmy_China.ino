@@ -1,8 +1,9 @@
 /*******************
   By eliid3a@gmail.com
-  23-04-2019  v.1.3
+  23-04-2019  v.2.1
   Contador de Piezas buenas, malas y activadores en caja, Maquina Jimmy
-  Si hay una pieza mala ignora el conteo de pieza buena y cuenta la pieza mala y activador si cae en caja y acompleta su ciclo
+  Si hay una pieza mala ignora el conteo de pieza buena y cuenta la pieza mala y activador si cae en caja, despues acompleta su ciclo
+  -Pantalla
   A4 = SDA
   A5 = SCL
 ********************/
@@ -30,7 +31,7 @@ const int ANTIreb = 10;
 const int S_BUENAS = 6;  //INPUT Sensor de piezas buenas
 const int LED_AM = 7;
 int state_buenas = 0;  //int state_1 = 0;
-int LED_AC = 11; // led de ACTIVADORES MALOS
+int LED_AC = 8; // led de ACTIVADORES MALOS
 
 
 //ESTADO ANTERIOR PIEZAS MALAS
@@ -60,15 +61,20 @@ int valorBoton_ac = 0;
 
 
 
+int prueba_bbb =0;
+int salida_mama = 0;
+int pru= 0 ;
+bool prub= 0 ;
+
+
 void setup() {  
-  //Serial.begin(9600);   //Inicia comunicación serie
+  Serial.begin(9600);   //Inicia comunicación serie
   pinMode(S_GIRO, INPUT_PULLUP);
   pinMode(LED_A, OUTPUT);
   pinMode(S_BUENAS, INPUT_PULLUP);
   pinMode(LED_AM, OUTPUT);
   pinMode(S_RECHAZO, INPUT_PULLUP);
   pinMode(LED_R, OUTPUT);
-  //pinMode(S_ACTIVADOR, INPUT_PULLUP);
   pinMode(LED_AC, OUTPUT);
 //////////////////////// pantalla OLED ////////////////////////////
   delay(100);  // This delay is needed to let the display to initialize delay(100);
@@ -77,31 +83,14 @@ void setup() {
   display.setTextColor(WHITE);  // Set color of the text WHITE
   display.setRotation(0);  // Set orientation. Goes from 0, 1, 2 or 3
   display.setTextWrap(false);  // By default, long lines of text are set to automatically “wrap” back to the leftmost column.
+                              //false = las lineas siguen y no salen    true = las lineas continuan
                                // To override this behavior (so text will run off the right side of the display - useful for
                                // scrolling marquee effects), use setTextWrap(false). The normal wrapping behavior is restored
                                // with setTextWrap(true).
-  display.dim(1);  //Set brightness (0 is maximun and 1 is a little dim)
+  display.dim(0);  //Set brightness (0 is maximun and 1 is a little dim)
 //////////////////////// pantalla OLED ////////////////////////////
-
-////////////////// SE INICIA PANTALLA PARA MOSTRAR TEXTO //////////////////////////////////
-  display.clearDisplay();  // Borrar la pantalla para que podamos actualizar
-  display.setFont(&FreeMono9pt7b);  // Set a custom font
-  display.setTextSize(0);  // El tamaño debe ser 0
-
-  display.setCursor(0, 10);  // (x,y)
-  display.println("Bienvenido...");
-
-  display.setCursor(30, 35);  // (x,y)
-  display.println("Maquina");
-  
-  display.setCursor(65, 60);  // (x,y)
-  display.println("Jimmy");
-  
-  display.display();  // Imprime todo lo que configuramos previamente
-
-  display.clearDisplay();  // Borrar la pantalla para que podamos actualizar 
+  inicio_oled();
 }
-
 
 
 
@@ -110,11 +99,28 @@ void loop() {
 
  state_giro = digitalRead (S_GIRO); // Se mantiene un pulso cuando jira la mesa
 
-    if (state_giro == LOW) { // Mientras este en movimiento la mesa y este en HIGH
-    
-        digitalWrite(LED_A, HIGH); // se activa LED AZUL mesa girando
+    if (state_giro == HIGH) { // Mientras este en movimiento la mesa y este en HIGH
+      
+      digitalWrite(LED_A, HIGH); // se activa LED AZUL mesa girando
+      rechazo();   
+    }
+        else  { // Mientras este en movimiento la mesa y este en HIGH   =    else
+                salida_ma = 0;
+                estado_ma = 0;
+                estadoAnterior_ma = 0;                
+                digitalWrite(LED_A, LOW); //apaga led azul
+                oled();
+                Serial.println("imprime");
+                Serial.println(contador_pz_bu);                               
+      }     
+} //fin void loop
 
-        estado_ma = digitalRead(S_RECHAZO);  // Lee si hay una entrada en el sensor de pz malas
+
+
+
+void rechazo(){
+
+  estado_ma = digitalRead(S_RECHAZO);  // Lee si hay una entrada en el sensor de pz malas
 
           if ((estado_ma == LOW) && (estadoAnterior_ma == HIGH)) { // if((estado == HIGH) && (estadoAnterior == LOW))
               salida_ma = 1 - salida_ma;
@@ -122,13 +128,11 @@ void loop() {
               delay(ANTIreb);
               //oled(); //imprime en pantalla
           }
-
             estadoAnterior_ma = estado_ma; 
 
-          if (salida_ma == 1) {            
-            digitalWrite(LED_R, HIGH); //hay pieza mala              
-
-                //************************ CONTADOR PZ ACTIVADOR
+          if (salida_ma == 1) {
+            digitalWrite(LED_R, HIGH); //hay pieza mala  
+            //************************ CONTADOR PZ ACTIVADOR
               valorBoton_ac = digitalRead(S_BUENAS);
 
               if (valorBoton_ac != estadoAnteriorBoton_ac) { //Si hay un cambio entra if
@@ -143,17 +147,22 @@ void loop() {
                   digitalWrite(LED_AC, LOW);
                 }
             }
-            estadoAnteriorBoton_ac = valorBoton_ac; //PIEZAS BUENAS CONTADOR guardamos el estado actual del pulsador para la siguiente iteración
+            estadoAnteriorBoton_ac = valorBoton_ac; //PIEZAS ACTIVADOR
+                  
+          }
+            else {
+              digitalWrite(LED_R, LOW);  //apaga led rojo
+              buenas();
+            }
+}
 
-/////////////////////////////////////////////////                   
-          }               
-             else {  // Sino hay pieza mala, cuenta si hay pieza buena
-              
-                    digitalWrite(LED_R, LOW);  //apaga led rojo
-                   //******* CONTADOR PZ BUENAS
-            valorBoton_bu = digitalRead(S_BUENAS);
 
-              if (valorBoton_bu != estadoAnteriorBoton_bu) { //Si hay un cambio entra if
+void buenas(){
+  // Sino hay pieza mala, cuenta si hay pieza buena             
+
+    valorBoton_bu = digitalRead(S_BUENAS);
+
+      if (valorBoton_bu != estadoAnteriorBoton_bu) { //Si hay un cambio entra if
                   if (valorBoton_bu == 0) { //if (valorBoton_bu == 1) {
                   contador_pz_bu++; //Aumentamos en una unidad la cuenta
                   digitalWrite(LED_AM, HIGH);
@@ -161,48 +170,53 @@ void loop() {
                   }
               if (valorBoton_bu == 1) { // if (valorBoton_bu == 0) {
                   digitalWrite(LED_AM, LOW);
-                }
-            }
-            estadoAnteriorBoton_bu = valorBoton_bu; //PIEZAS BUENAS CONTADOR guardamos el estado actual del pulsador para la siguiente iteración
-            
-            } // Cierra ELSE- Sino hay pieza mala, cuenta si hay pieza buena 
-                      
-    
-  } // Se cierra Primer IF
-          else { // Mientras este en movimiento la mesa y este en HIGH   =    else
-                salida_ma = 0;
-                estado_ma = 0;
-                estadoAnterior_ma = 0;
-                digitalWrite(LED_A, LOW); //apaga led azul
-          }
-
-} //fin void loop
-
+              }
+       }
+            estadoAnteriorBoton_bu = valorBoton_bu; //PIEZAS BUENAS CONTADOR
+  
+}
 
 
 void oled(){
-/////////////////////////////////////  screen  OLED //////////////////////////
+/*////////////////////////////////////  screen  OLED //////////////////////////
   display.clearDisplay();  // Clear the display so we can refresh
   display.setFont(&FreeMono9pt7b);  // Set a custom font
   display.setTextSize(0);  // Set text size. We are using a custom font so you should always use the text size of 0
-/////////////////////////////////////  screen OLED //////////////////////////
-
-  display.setCursor(0, 15);  // (x,y)
+/////////////////////////////////////  screen OLED /////////////////////////
+*/ 
+  display.setCursor(0, 10);  // (x,y)
   display.println("Pz Ok:");
-  display.setCursor(90, 15);  // (x,y)
+  display.setCursor(70, 10);  // (x,y)
   display.println(contador_pz_bu);
         //LCD
-  display.setCursor(0, 40);  // (x,y)
+  display.setCursor(0, 35);  // (x,y)
   display.println("Malas:");
-  display.setCursor(75, 40);  // (x,y)
+  display.setCursor(70, 35);  // (x,y)
   display.println(contador_pz_ma);
 
   display.setCursor(0,60);
-  display.println("Acti:");
-  display.setCursor(90,60);
-  display.println(contador_pz_ac);
-  
+  display.println("Activ:");
+  display.setCursor(70,60);
+  display.println(contador_pz_ac);  
   display.display();  // Print everything we set previously   
+  display.clearDisplay();    
+}
+ 
+void inicio_oled(){
+  ////////////////// SE INICIA PANTALLA PARA MOSTRAR TEXTO //////////////////////////////////
+  //display.clearDisplay();  // Borrar la pantalla para que podamos actualizar
+  display.setFont(&FreeMono9pt7b);  // Set a custom font
+  display.setTextSize(0);  // El tamaño debe ser 0
 
-  //display.clearDisplay();    
+  display.setCursor(0, 10);  // (x,y)
+  display.println("Bienvenido...");
+
+  display.setCursor(30, 35);  // (x,y)
+  display.println("Maquina");
+  
+  display.setCursor(70, 60);  // (x,y)
+  display.println("Jimmy");
+  
+  display.display();  // Imprime todo lo que configuramos previamente
+  display.clearDisplay();  // Borrar la pantalla para que podamos actualizar 
 }
