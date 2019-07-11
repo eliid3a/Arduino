@@ -60,7 +60,6 @@ int estadoAnteriorBoton_ac = 0; //int estadoAnteriorBoton_bu = 0;
 int valorBoton_ac = 0;
 
 
-
 int prueba_bbb =0;
 int salida_mama = 0;
 int pru= 0 ;
@@ -109,9 +108,7 @@ void loop() {
                 estado_ma = 0;
                 estadoAnterior_ma = 0;                
                 digitalWrite(LED_A, LOW); //apaga led azul
-                oled();
-                Serial.println("imprime");
-                Serial.println(contador_pz_bu);                               
+                oled();                           
       }     
 } //fin void loop
 
